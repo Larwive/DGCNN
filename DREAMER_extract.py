@@ -41,13 +41,13 @@ def read_valence_arousal_dominance():
     data = loadmat(join(dataset_path, 'DREAMER.mat'))
     dreamer_data = data['DREAMER'][0, 0]['Data']
     for patient in range(23):
-        val = dreamer_data['Data'][0, patient]['ScoreValence'][0, :][0]
+        val = dreamer_data[0, patient]['ScoreValence'][0, :][0]
         for value in val:
             valence.append(value[0])
-        aro = dreamer_data['Data'][0, patient]['ScoreArousal'][0, :][0]
+        aro = dreamer_data[0, patient]['ScoreArousal'][0, :][0]
         for value in aro:
             arousal.append(value[0])
-        dom = dreamer_data['Data'][0, patient]['ScoreDominance'][0, :][0]
+        dom = dreamer_data[0, patient]['ScoreDominance'][0, :][0]
         for value in dom:
             dominance.append(value[0])
     return valence, arousal, dominance
@@ -91,32 +91,32 @@ def get_features(raw):
     info_cropped = mne.create_info(orig_ch_names, orig_sfreq, ch_types=['eeg'] * len(raw.info['ch_names']))
     info_cropped['description'] = "Cropped EEG data"
 
-    raw_cropped = mne.io.RawArray(cropped, info_cropped)
+    raw_cropped = mne.io.RawArray(cropped, info_cropped, verbose=0)
     raw_cropped.set_meas_date(raw.info['meas_date'])
 
     # Filter to keep the frequency bands
-    theta = raw_cropped.copy().filter(4, 8).get_data()
-    alpha = raw_cropped.copy().filter(8, 13).get_data()
-    beta = raw_cropped.copy().filter(13, 20).get_data()
+    theta = raw_cropped.copy().filter(4, 8, verbose=0).get_data()
+    alpha = raw_cropped.copy().filter(8, 13, verbose=0).get_data()
+    beta = raw_cropped.copy().filter(13, 20, verbose=0).get_data()
 
     for i in range(59):
         theta_cropped = theta[:, i * 128:(i + 1) * 128]
         alpha_cropped = alpha[:, i * 128:(i + 1) * 128]
         beta_cropped = beta[:, i * 128:(i + 1) * 128]
-        raw_theta_cropped = mne.io.RawArray(theta_cropped, info_cropped)
-        raw_alpha_cropped = mne.io.RawArray(alpha_cropped, info_cropped)
-        raw_beta_cropped = mne.io.RawArray(beta_cropped, info_cropped)
+        raw_theta_cropped = mne.io.RawArray(theta_cropped, info_cropped, verbose=0)
+        raw_alpha_cropped = mne.io.RawArray(alpha_cropped, info_cropped, verbose=0)
+        raw_beta_cropped = mne.io.RawArray(beta_cropped, info_cropped, verbose=0)
 
         # PSD
         theta_frequencies, theta_psd = mne.time_frequency.psd_array_multitaper(raw_theta_cropped.get_data(), sfreq=128,
                                                                                fmin=4,
-                                                                               fmax=8)
+                                                                               fmax=8, verbose=0)
         alpha_frequencies, alpha_psd = mne.time_frequency.psd_array_multitaper(raw_alpha_cropped.get_data(), sfreq=128,
                                                                                fmin=8,
-                                                                               fmax=13)
+                                                                               fmax=13, verbose=0)
         beta_frequencies, beta_psd = mne.time_frequency.psd_array_multitaper(raw_beta_cropped.get_data(), sfreq=128,
                                                                              fmin=13,
-                                                                             fmax=20)
+                                                                             fmax=20, verbose=0)
 
         yield theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies
 

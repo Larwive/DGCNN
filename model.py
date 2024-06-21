@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from layers import GraphConvolution, Linear
 from utils import normalize_A, generate_cheby_adj
 
+device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
+
 
 class Chebynet(nn.Module):
     def __init__(self, in_channels, K, out_channels):
@@ -15,9 +17,9 @@ class Chebynet(nn.Module):
 
     def forward(self, x, L):
         adj = generate_cheby_adj(L, self.K)
-        result = self.gc1[0](x, adj[0])
-        for i in range(1, len(self.gc1)):
-            result += self.gc1[i](x, adj[i])
+        result = self.gc[0](x, adj[0])  # Previously gc1
+        for i in range(1, len(self.gc)):  # Previously gc1
+            result += self.gc[i](x, adj[i])  # Previously gc1
         result = F.relu(result)
         return result
 
@@ -36,7 +38,7 @@ class DGCNN(nn.Module):
         self.layer1 = Chebynet(in_channels, k_adj, out_channels)
         self.BN1 = nn.BatchNorm1d(in_channels)
         self.fc = Linear(num_electrodes * out_channels, num_classes)
-        self.A = nn.Parameter(torch.FloatTensor(num_electrodes, num_electrodes).cuda())
+        self.A = nn.Parameter(torch.FloatTensor(num_electrodes, num_electrodes).to(device))
         nn.init.uniform_(self.A, 0.01, 0.5)
 
     def forward(self, x):
