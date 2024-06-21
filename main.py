@@ -11,7 +11,6 @@ from DREAMER_extract import read_raw, get_features, read_valence_arousal_dominan
 device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
 
 
-
 def train_model(model, train_data, criterion, optimizer, num_epochs, device, alpha=0.01):
     model.to(device)
     train_losses = []
@@ -60,6 +59,13 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
         val_loader = DataLoader(val_data, batch_size=1, shuffle=False)
 
         model = model_class(19, 14, 5, 3, 3)
+        # I didn't quite understand what to put there but:
+        # in_channels: 19 because it won't work otherwise
+        # num_electrodes: 14 because there are 14 channels
+        # k_adj: 5 because it's prime
+        # out_channels: 3 because of valence, arousal, dominance but it seems it can be other things
+        # num_classes: 3 because of valence, arousal, dominance
+
         optimizer = optimizer_class(model.parameters())
 
         train_losses = train_model(model, train_loader, criterion, optimizer, num_epochs, device, alpha)
@@ -98,21 +104,23 @@ inputs, targets = [], []
 valence, arousal, dominance = read_valence_arousal_dominance()
 
 i = 0
-for patient in tqdm(range(2)):
-    for rec_type in ['stimuli']: # 'baseline
-        for movie in range(9):
+for patient in tqdm(range(23)):
+    for rec_type in ['stimuli']:  # No need 'baseline'
+        for movie in range(18):
             raw = read_raw(patient, rec_type, movie, verbose=0)
-            for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(raw):
+            for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(
+                    raw):
                 inputs.append(concatenate((theta_frequencies, alpha_frequencies, beta_frequencies), axis=1))
                 targets.append([valence[i], arousal[i], dominance[i]])
             i += 1
 
 print("Success")
-dataset = TensorDataset(torch.tensor(array(inputs, dtype=float32), device=device), torch.tensor(array(targets, dtype=float32), device=device))
+dataset = TensorDataset(torch.tensor(array(inputs, dtype=float32), device=device),
+                        torch.tensor(array(targets, dtype=float32), device=device))
 
 criterion = nn.CrossEntropyLoss()
 optimizer_class = lambda params: optim.Adam(params, lr=0.001)
 
-#model = DGCNN(1, 14, 5, 3, 3)
+# model = DGCNN(1, 14, 5, 3, 3)
 avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=10,
                                       device=device)

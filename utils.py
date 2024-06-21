@@ -3,6 +3,7 @@ import torch.nn.functional as F
 
 device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def normalize_A(A, lmax=2):
     A = F.relu(A)
     N = A.shape[0]
