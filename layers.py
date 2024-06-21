@@ -1,7 +1,5 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
-from torch.nn.modules.module import Module
 
 
 class GraphConvolution(nn.Module):
@@ -26,6 +24,7 @@ class GraphConvolution(nn.Module):
             return out + self.bias
         else:
             return out
+
 
 class Linear(nn.Module):
     def __init__(self, in_channels, out_channels, bias=True):
