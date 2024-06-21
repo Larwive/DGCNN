@@ -5,8 +5,33 @@ from model import DGCNN
 from torch.utils.data import DataLoader, TensorDataset
 from numpy import concatenate, array, float32
 from tqdm import tqdm
+from time import process_time_ns
 
 from DREAMER_extract import read_raw, get_features, read_valence_arousal_dominance
+
+
+def format_time(seconds):
+    seconds = int(seconds)
+    days = seconds // (24 * 3600)
+    hours = (seconds % (24 * 3600)) // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days} day{'s' if days > 1 else ''}")
+    if hours > 0:
+        parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+    if minutes > 0:
+        parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+    if seconds > 0:
+        parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
+
+    if not parts:
+        return "0 seconds"
+
+    return ", ".join(parts)
+
 
 device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -51,9 +76,9 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
     loo_train_losses = []
     loo_val_losses = []
 
-    for i in range(len(dataset)):
-        val_data = [dataset[i]]
-        train_data = [dataset[j] for j in range(len(dataset)) if j != i]
+    for i in range(len(dataset) // 59):  # There are 59 epochs for each movie
+        val_data = [dataset[j] for j in range(i * 59, (i + 1) * 59)]
+        train_data = [dataset[j] for j in range(len(dataset)) if j < i * 59 or j >= (i + 1) * 59]
 
         train_loader = DataLoader(train_data, batch_size=1, shuffle=True)
         val_loader = DataLoader(val_data, batch_size=1, shuffle=False)
@@ -122,5 +147,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer_class = lambda params: optim.Adam(params, lr=0.001)
 
 # model = DGCNN(1, 14, 5, 3, 3)
+begin = process_time_ns()
 avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=10,
                                       device=device)
+print("Training completed in {}.".format(format_time((process_time_ns() - begin) * 1E-9)))

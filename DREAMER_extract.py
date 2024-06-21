@@ -11,6 +11,7 @@ dataset_path = 'DREAMER'
 sampling_rate = 128  # From the DREAMER dataset
 channel_labels = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 'FC6', 'F4', 'F8',
                   'AF4']  # From the DREAMER dataset
+# TODO: Remove AF, T, P, O, do clustering
 info = mne.create_info(channel_labels, sfreq=sampling_rate, ch_types='eeg')  # Create raw data metadata to be used later
 
 
