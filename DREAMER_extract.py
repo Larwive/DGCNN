@@ -20,13 +20,13 @@ def read_dataset():
     :return: None
     """
     data = loadmat(join(dataset_path, 'DREAMER.mat'))
-    dreamerdata = data['DREAMER'][0, 0]['Data']
+    dreamer_data = data['DREAMER'][0, 0]['Data']
     for patient in range(23):
         for type in ['baseline', 'stimuli']:
             for movie in range(18):
                 path = join(dataset_path, 'p{}_{}_m{}_raw.fif'.format(patient, type, movie))
                 print("Saving {}...".format(path))
-                raw = mne.io.RawArray(dreamerdata[0, patient]['EEG'][0][0][type][0, 0][movie][0].T, info)
+                raw = mne.io.RawArray(dreamer_data[0, patient]['EEG'][0][0][type][0, 0][movie][0].T, info)
                 raw.save(path, overwrite=True)
 
 
@@ -39,18 +39,19 @@ def read_valence_arousal_dominance():
     arousal: list[uint8] = []
     dominance: list[uint8] = []
     data = loadmat(join(dataset_path, 'DREAMER.mat'))
-    dreamerdata = data['DREAMER'][0, 0]['Data']
+    dreamer_data = data['DREAMER'][0, 0]['Data']
     for patient in range(23):
-        val = dreamerdata['Data'][0, patient]['ScoreValence'][0, :][0]
+        val = dreamer_data['Data'][0, patient]['ScoreValence'][0, :][0]
         for value in val:
             valence.append(value[0])
-        aro = dreamerdata['Data'][0, patient]['ScoreArousal'][0, :][0]
+        aro = dreamer_data['Data'][0, patient]['ScoreArousal'][0, :][0]
         for value in aro:
             arousal.append(value[0])
-        dom = dreamerdata['Data'][0, patient]['ScoreDominance'][0, :][0]
+        dom = dreamer_data['Data'][0, patient]['ScoreDominance'][0, :][0]
         for value in dom:
             dominance.append(value[0])
     return valence, arousal, dominance
+
 
 """
 raw = mne.io.read_raw_fif('DREAMER/p0_baseline_m0_raw.fif')
@@ -64,9 +65,9 @@ plt.show()"""
 
 
 def read_raw(n_patient: int, type: str, n_movie: int, allow_maxshield: Any = False,
-            preload: bool = False,
-            on_split_missing: str = "raise",
-            verbose: Any = None):
+             preload: bool = False,
+             on_split_missing: str = "raise",
+             verbose: Any = None):
     """
     A `fif` file opener wrapper with mne.io.read_raw_fif for the DREAMER dataset.
     :param n_patient: The patient number (from 0 to 22 for the DREAMER dataset).
@@ -78,7 +79,7 @@ def read_raw(n_patient: int, type: str, n_movie: int, allow_maxshield: Any = Fal
     :param verbose: See mne.io.read_raw_fif
     :return: A Raw object containing FIF data.
     """
-    return mne.io.read_raw_fif(join(dataset_path, '/p{}_{}_m{}_raw.fif'.format(n_patient, type, n_movie)),
+    return mne.io.read_raw_fif(join(dataset_path, 'p{}_{}_m{}_raw.fif'.format(n_patient, type, n_movie)),
                                allow_maxshield=allow_maxshield, preload=preload, on_split_missing=on_split_missing,
                                verbose=verbose)
 
@@ -99,10 +100,10 @@ def get_features(raw):
     orig_sfreq = raw.info['sfreq']
 
     info_cropped = mne.create_info(orig_ch_names, orig_sfreq, ch_types=['eeg'] * len(raw.info['ch_names']))
-    info_cropped['meas_date'] = raw.info['meas_date']
     info_cropped['description'] = "Cropped EEG data (last 60 seconds)"
 
     raw_cropped = mne.io.RawArray(cropped, info_cropped)
+    raw_cropped.set_meas_date(raw.info['meas_date'])
 
     theta = raw_cropped.copy().filter(4, 8)
     alpha = raw_cropped.copy().filter(8, 13)
@@ -117,15 +118,18 @@ def get_features(raw):
         raw_beta_cropped = mne.io.RawArray(beta_cropped, info_cropped)
 
         # PSD
-        theta_frequencies, theta_psd = mne.time_frequency.psd_array_multitaper(raw_theta_cropped, sfreq=128, fmin=4,
-                                                                               fmax=8, n_fft=500)
-        alpha_frequencies, alpha_psd = mne.time_frequency.psd_array_multitaper(raw_alpha_cropped, sfreq=128, fmin=8,
-                                                                               fmax=13, n_fft=500)
-        beta_frequencies, beta_psd = mne.time_frequency.psd_array_multitaper(raw_beta_cropped, sfreq=128, fmin=13,
-                                                                             fmax=20, n_fft=500)
+        theta_frequencies, theta_psd = mne.time_frequency.psd_array_multitaper(raw_theta_cropped.get_data(), sfreq=128, fmin=4,
+                                                                               fmax=8)
+        alpha_frequencies, alpha_psd = mne.time_frequency.psd_array_multitaper(raw_alpha_cropped.get_data(), sfreq=128, fmin=8,
+                                                                               fmax=13)
+        beta_frequencies, beta_psd = mne.time_frequency.psd_array_multitaper(raw_beta_cropped.get_data(), sfreq=128, fmin=13,
+                                                                             fmax=20)
+        print(theta_frequencies)
 
 
 if __name__ == '__main__':
-    #read_dataset()
+    # read_dataset()
+    test_raw = read_raw(n_patient=1, type='stimuli', n_movie=10)
+    get_features(test_raw)
 
     pass
