@@ -158,11 +158,11 @@ print("Success")
 dataset = TensorDataset(torch.tensor(array(inputs, dtype=float32), device=device),
                         torch.tensor(array(targets, dtype=float32), device=device))
 
-criterion = nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
+criterion = nn.L1Loss(reduction='sum')  # nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
 optimizer_class = lambda params: optim.Adam(params, lr=0.001)
 
 # model = DGCNN(1, 14, 5, 3, 3)
 begin = process_time_ns()
-avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=40,
+avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=100,
                                       device=device, batch_size=100, alpha=0.01)
 print("Training completed in {}.".format(format_time((process_time_ns() - begin) * 1E-9)))
