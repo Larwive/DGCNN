@@ -53,7 +53,7 @@ def train_model(model, train_data, criterion, optimizer, num_epochs, device, alp
 
             loss = criterion(outputs, targets)
 
-            # L2 regularization
+            # L2 regularization (?)
             l2_reg = torch.tensor(0., requires_grad=True)
             for param in model.parameters():
                 l2_reg = l2_reg + torch.norm(param)
@@ -62,9 +62,9 @@ def train_model(model, train_data, criterion, optimizer, num_epochs, device, alp
             loss.backward()
             optimizer.step()
 
+            # Update adjacency matrix (?)
             with torch.no_grad():
                 model.A += alpha*(model.A.grad - model.A)
-
             model.A.grad.zero_()
 
             epoch_train_loss += loss.item() * inputs.size(0)
@@ -122,7 +122,7 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
 
                 val_loss += loss.item()
 
-                correct += (outputs.round() == targets).any(dim=1).sum().item()
+                correct += (outputs.round() == targets).sum().item()
                 total += len(outputs)
                 print("Got:", array(outputs.cpu()), "Checking first: ", array(outputs.round().cpu())[0], array(targets.cpu())[0])
 
@@ -158,11 +158,11 @@ print("Success")
 dataset = TensorDataset(torch.tensor(array(inputs, dtype=float32), device=device),
                         torch.tensor(array(targets, dtype=float32), device=device))
 
-criterion = nn.L1Loss(reduction='sum')  # nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
+criterion = nn.MSELoss(reduction='sum')  # nn.L1Loss(reduction='sum')  # nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
 optimizer_class = lambda params: optim.Adam(params, lr=0.001)
 
-# model = DGCNN(1, 14, 5, 3, 3)
+
 begin = process_time_ns()
 avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=100,
-                                      device=device, batch_size=100, alpha=0.01)
+                                      device=device, batch_size=200, alpha=0.01)
 print("Training completed in {}.".format(format_time((process_time_ns() - begin) * 1E-9)))
