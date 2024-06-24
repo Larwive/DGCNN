@@ -41,7 +41,7 @@ def train_model(model, train_data, criterion, optimizer, num_epochs, device, alp
     train_losses = []
 
     model.train()
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in range(num_epochs):
         epoch_train_loss = 0.0
 
         for inputs, targets in train_data:
@@ -62,6 +62,11 @@ def train_model(model, train_data, criterion, optimizer, num_epochs, device, alp
             loss.backward()
             optimizer.step()
 
+            with torch.no_grad():
+                model.A += alpha*(model.A.grad - model.A)
+
+            model.A.grad.zero_()
+
             epoch_train_loss += loss.item() * inputs.size(0)
 
         epoch_train_loss /= len(train_data.dataset)
@@ -69,12 +74,12 @@ def train_model(model, train_data, criterion, optimizer, num_epochs, device, alp
 
         print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {epoch_train_loss:.4f}')
         if epoch % 5 == 0:
-            alpha /= 40
+            alpha /= 10
 
     return train_losses
 
 
-def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device, alpha=0.0001):
+def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device, batch_size = 100, alpha=0.0001):
     loo_train_losses = []
     loo_val_losses = []
 
@@ -82,12 +87,12 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
         val_data = [dataset[j] for j in range(i * 59, (i + 1) * 59)]
         train_data = [dataset[j] for j in range(len(dataset)) if j < i * 59 or j >= (i + 1) * 59]
 
-        train_loader = DataLoader(train_data, batch_size=1, shuffle=True)
-        val_loader = DataLoader(val_data, batch_size=1, shuffle=False)
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
 
-        model = model_class(19, 14, 17, 3, 3)
+        model = model_class(19, 14, 17, 7, 3)
         # I didn't quite understand what to put there but:
-        # in_channels: 19 because it won't work otherwise
+        # in_channels: 19 because of the frequencies of the bands (the 8 and 13 Hz overlap)
         # num_electrodes: 14 because there are 14 channels
         # k_adj: 17 because it's prime
         # out_channels: 3 because of valence, arousal, dominance but it seems it can be other things
@@ -104,11 +109,11 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
         with torch.no_grad():
             val_loss = 0.0
             for inputs, targets in val_loader:
+                #print(array(inputs.cpu()))
                 inputs, targets = inputs.to(device), targets.to(device)
 
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
-                print("Got:", array(outputs.cpu()))
                 # L2 regularization
                 l2_reg = torch.tensor(0., requires_grad=True)
                 for param in model.parameters():
@@ -119,7 +124,7 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
 
                 correct += (outputs.round() == targets).any(dim=1).sum().item()
                 total += len(outputs)
-                print("Checking: ", array(outputs.round().cpu())[0], array(targets.cpu())[0])
+                print("Got:", array(outputs.cpu()), "Checking first: ", array(outputs.round().cpu())[0], array(targets.cpu())[0])
 
             print("Accuracy: {}".format(correct / total / 3))
             loo_val_losses.append(val_loss)
@@ -139,9 +144,9 @@ inputs, targets = [], []
 valence, arousal, dominance = read_valence_arousal_dominance()
 
 i = 0
-for patient in tqdm(range(3)):
+for patient in tqdm(range(23)):
     for rec_type in ['stimuli']:  # No need 'baseline'
-        for movie in range(5):
+        for movie in range(18):
             raw = read_raw(patient, rec_type, movie, verbose=0)
             for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(
                     raw):
@@ -153,11 +158,11 @@ print("Success")
 dataset = TensorDataset(torch.tensor(array(inputs, dtype=float32), device=device),
                         torch.tensor(array(targets, dtype=float32), device=device))
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
 optimizer_class = lambda params: optim.Adam(params, lr=0.001)
 
 # model = DGCNN(1, 14, 5, 3, 3)
 begin = process_time_ns()
-avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=20,
-                                      device=device)
+avg_train_loss, avg_val_loss = loo_cv(DGCNN, dataset, criterion, optimizer_class, num_epochs=40,
+                                      device=device, batch_size=100, alpha=0.01)
 print("Training completed in {}.".format(format_time((process_time_ns() - begin) * 1E-9)))

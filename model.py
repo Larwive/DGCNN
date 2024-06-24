@@ -48,5 +48,5 @@ class DGCNN(nn.Module):
         result = result.reshape(x.shape[0], -1)
         result = self.fc(result)
 
-        result = F.softmax(result, dim=1)*5 + .5  # Added
+        #result = F.softmax(result, dim=1)*5 + .5  # Added
         return result
