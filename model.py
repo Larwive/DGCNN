@@ -5,7 +5,7 @@ from layers import GraphConvolution, Linear
 from utils import normalize_A, generate_cheby_adj
 
 device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
-
+print("Using {} (model.py)".format(device))
 
 class Chebynet(nn.Module):
     def __init__(self, in_channels, K, out_channels):

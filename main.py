@@ -34,14 +34,14 @@ def format_time(seconds):
 
 
 device = torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu')
-
+print("Using {} (main.py)".format(device))
 
 def train_model(model, train_data, criterion, optimizer, num_epochs, device, alpha=0.01):
     model.to(device)
     train_losses = []
 
     model.train()
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         epoch_train_loss = 0.0
 
         for inputs, targets in train_data:
@@ -139,9 +139,9 @@ inputs, targets = [], []
 valence, arousal, dominance = read_valence_arousal_dominance()
 
 i = 0
-for patient in tqdm(range(6)):
+for patient in tqdm(range(3)):
     for rec_type in ['stimuli']:  # No need 'baseline'
-        for movie in range(18):
+        for movie in range(5):
             raw = read_raw(patient, rec_type, movie, verbose=0)
             for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(
                     raw):
