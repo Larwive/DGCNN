@@ -1,6 +1,6 @@
 from typing import Any
 from os.path import join
-from numpy import uint8
+from numpy import uint8, array
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import mne
@@ -101,9 +101,9 @@ def get_features(raw):
     beta = raw_cropped.copy().filter(13, 20, verbose=0).get_data()
 
     for i in range(59):
-        theta_cropped = theta[:, i * 128:(i + 1) * 128]
-        alpha_cropped = alpha[:, i * 128:(i + 1) * 128]
-        beta_cropped = beta[:, i * 128:(i + 1) * 128]
+        theta_cropped = theta[:, i * 128:(i + 2) * 128]
+        alpha_cropped = alpha[:, i * 128:(i + 2) * 128]
+        beta_cropped = beta[:, i * 128:(i + 2) * 128]
         raw_theta_cropped = mne.io.RawArray(theta_cropped, info_cropped, verbose=0)
         raw_alpha_cropped = mne.io.RawArray(alpha_cropped, info_cropped, verbose=0)
         raw_beta_cropped = mne.io.RawArray(beta_cropped, info_cropped, verbose=0)
@@ -119,7 +119,8 @@ def get_features(raw):
                                                                              fmin=13,
                                                                              fmax=20, verbose=0)
 
-        yield theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies
+        #yield theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies
+        yield [[array(lis).mean(0)] for lis in theta_frequencies], [[array(lis).mean(0)] for lis in alpha_frequencies], [[array(lis).mean(0)] for lis in beta_frequencies]
 
 
 if __name__ == '__main__':

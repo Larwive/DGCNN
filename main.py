@@ -90,7 +90,7 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
         train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
 
-        model = model_class(19, 14, 17, 7, 3)
+        model = model_class(3, 14, 17, 7, 3)
         # I didn't quite understand what to put there but:
         # in_channels: 19 because of the frequencies of the bands (the 8 and 13 Hz overlap)
         # num_electrodes: 14 because there are 14 channels
@@ -148,9 +148,13 @@ for patient in tqdm(range(23)):
     for rec_type in ['stimuli']:  # No need 'baseline'
         for movie in range(18):
             raw = read_raw(patient, rec_type, movie, verbose=0)
-            for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(
-                    raw):
-                inputs.append(concatenate((theta_frequencies, alpha_frequencies, beta_frequencies), axis=1))
+            #for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(
+                    #raw):
+                #inputs.append(concatenate((theta_frequencies, alpha_frequencies, beta_frequencies), axis=1))
+            for theta_psd, alpha_psd, beta_psd in get_features(raw):
+                inputs.append(concatenate((theta_psd, alpha_psd, beta_psd), axis=1))
+                #print(theta_psd)
+                #inputs.append(array([theta_psd, alpha_psd, beta_psd]))
                 targets.append([valence[i], arousal[i], dominance[i]])
             i += 1
 
