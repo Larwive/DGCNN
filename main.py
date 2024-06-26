@@ -57,7 +57,8 @@ def train_model(model, train_data, criterion, optimizer, num_epochs, device, alp
             l2_reg = torch.tensor(0., requires_grad=True)
             for param in model.parameters():
                 l2_reg = l2_reg + torch.norm(param)
-            loss = loss + alpha * l2_reg
+            #print("TTTTTTTTTTTTTTTTTT", loss, l2_reg, l2_reg * alpha)
+            #loss = loss + 1E-4 * l2_reg
 
             loss.backward()
             optimizer.step()
@@ -95,7 +96,7 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
         # in_channels: 19 because of the frequencies of the bands (the 8 and 13 Hz overlap)
         # num_electrodes: 14 because there are 14 channels
         # k_adj: 17 because it's prime
-        # out_channels: 3 because of valence, arousal, dominance but it seems it can be other things
+        # out_channels: 7 but it seems it can be other things
         # num_classes: 3 because of valence, arousal, dominance
 
         optimizer = optimizer_class(model.parameters())
@@ -162,7 +163,7 @@ print("Success")
 dataset = TensorDataset(torch.tensor(array(inputs, dtype=float32), device=device),
                         torch.tensor(array(targets, dtype=float32), device=device))
 
-criterion = nn.MSELoss(reduction='sum')  # nn.L1Loss(reduction='sum')  # nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss() # nn.MSELoss(reduction='sum')  # nn.L1Loss(reduction='sum')  # nn.MSELoss()  # nn.MultiLabelSoftMarginLoss()  # nn.CrossEntropyLoss()
 optimizer_class = lambda params: optim.Adam(params, lr=0.001)
 
 

@@ -4,6 +4,7 @@ from numpy import uint8, array
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import mne
+from scipy.integrate import simps
 
 # The path for the dataset.
 dataset_path = 'DREAMER'
@@ -120,7 +121,10 @@ def get_features(raw):
                                                                              fmax=20, verbose=0)
 
         #yield theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies
-        yield [[array(lis).mean(0)] for lis in theta_frequencies], [[array(lis).mean(0)] for lis in alpha_frequencies], [[array(lis).mean(0)] for lis in beta_frequencies]
+        #yield [[array(lis).mean(0)] for lis in theta_frequencies], [[array(lis).mean(0)] for lis in alpha_frequencies], [[array(lis).mean(0)] for lis in beta_frequencies]
+        yield [[simps(lis,dx=0.5)] for lis in theta_frequencies], [[simps(lis,dx=0.5)] for lis in
+                                                                    alpha_frequencies], [[simps(lis,dx=0.5)] for lis in
+                                                                                         beta_frequencies]
 
 
 if __name__ == '__main__':
