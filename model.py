@@ -24,6 +24,14 @@ class Chebynet(nn.Module):
         return result
 
 
+class FrontLayer(nn.Module):
+    def __init__(self, in_features: int, out_features: int):
+        super(FrontLayer, self).__init__()
+        self.linear = nn.Linear(in_features, out_features)
+
+    def forward(self, x):
+        return self.linear(x)
+
 class DGCNN(nn.Module):
     def __init__(self, in_channels: int, num_electrodes: int, k_adj, out_channels: int, num_classes: int = 3):
         """
@@ -35,14 +43,16 @@ class DGCNN(nn.Module):
         """
         super(DGCNN, self).__init__()
         self.K = k_adj
-        self.layer1 = Chebynet(in_channels, k_adj, out_channels)
-        self.BN1 = nn.BatchNorm1d(in_channels)
+        self.layer1 = Chebynet(1, k_adj, out_channels) # in_channels
+        self.BN1 = nn.BatchNorm1d(1) # in_channels
         self.fc = Linear(num_electrodes * out_channels, num_classes)
         self.A = nn.Parameter(torch.FloatTensor(num_electrodes, num_electrodes).to(device))
         nn.init.uniform_(self.A, 0.01, 0.5)
+        self.frontlayer = FrontLayer(in_channels, 1)
 
     def forward(self, x):
-        x = self.BN1(x.transpose(1, 2)).transpose(1, 2)  # data can also be standardized offline
+        x = self.frontlayer(x)
+        #x = self.BN1(x.transpose(1, 2)).transpose(1, 2)  # data can also be standardized offline
         L = normalize_A(self.A)
         result = self.layer1(x, L)
         result = result.reshape(x.shape[0], -1)
