@@ -6,8 +6,11 @@ from torch.utils.data import DataLoader, TensorDataset
 from numpy import concatenate, array, float32
 from tqdm import tqdm
 from time import process_time_ns
+from os.path import join
 
-from DREAMER_extract import read_raw, get_features, read_valence_arousal_dominance
+from DREAMER_extract import read_raw, get_features, read_valence_arousal_dominance, read_json_file
+
+dataset_path = 'DREAMER'
 
 
 def format_time(seconds):
@@ -115,6 +118,7 @@ def loo_cv(model_class, dataset, criterion, optimizer_class, num_epochs, device,
 
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
+
                 # L2 regularization
                 l2_reg = torch.tensor(0., requires_grad=True)
                 for param in model.parameters():
@@ -148,14 +152,9 @@ i = 0
 for patient in tqdm(range(23)):
     for rec_type in ['stimuli']:  # No need 'baseline'
         for movie in range(18):
-            raw = read_raw(patient, rec_type, movie, verbose=0)
-            #for theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies in get_features(
-                    #raw):
-                #inputs.append(concatenate((theta_frequencies, alpha_frequencies, beta_frequencies), axis=1))
-            for theta_psd, alpha_psd, beta_psd in get_features(raw):
+            data_dict = read_json_file(join(dataset_path, 'DREAMER_features_p{}_{}_m{}.json'.format(patient, rec_type, movie)))
+            for theta_psd, alpha_psd, beta_psd in zip(data_dict["theta"], data_dict["alpha"], data_dict["beta"]):
                 inputs.append(concatenate((theta_psd, alpha_psd, beta_psd), axis=1))
-                #print(theta_psd)
-                #inputs.append(array([theta_psd, alpha_psd, beta_psd]))
                 targets.append([valence[i], arousal[i], dominance[i]])
             i += 1
 

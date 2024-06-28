@@ -5,6 +5,7 @@ from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import mne
 from scipy.integrate import simps
+import json
 
 # The path for the dataset.
 dataset_path = 'DREAMER'
@@ -14,6 +15,17 @@ channel_labels = ['AF3', 'F7', 'F3', 'FC5', 'T7', 'P7', 'O1', 'O2', 'P8', 'T8', 
                   'AF4']  # From the DREAMER dataset
 # TODO: Remove AF, T, P, O, do clustering
 info = mne.create_info(channel_labels, sfreq=sampling_rate, ch_types='eeg')  # Create raw data metadata to be used later
+
+
+def write_json_file(data, filename):
+    with open(filename, 'w') as file:
+        json.dump(data, file, indent=4)
+
+
+def read_json_file(filename):
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
 
 
 def read_dataset():
@@ -32,7 +44,7 @@ def read_dataset():
                 raw.save(path, overwrite=True)
 
 
-def read_valence_arousal_dominance():
+def write_valence_arousal_dominance():
     """
     Read the valence, arousal, and dominance values from the dataset in order (patient first then movie).
     :return: Lists of `numpy.uint8` corresponding to valence, arousal, and dominance values.
@@ -52,7 +64,20 @@ def read_valence_arousal_dominance():
         dom = dreamer_data[0, patient]['ScoreDominance'][0, :][0]
         for value in dom:
             dominance.append(value[0])
-    return valence, arousal, dominance
+    print(type(array(dominance, dtype=int)[0]))
+    data = {
+        "valence": list(map(int, valence)),
+        "arousal": list(map(int, arousal)),
+        "dominance": list(map(int, dominance))
+    }
+    filename = join(dataset_path, 'DREAMER_vad.json')
+    write_json_file(data, filename)
+    print(f"Data has been written to {filename}.")
+
+
+def read_valence_arousal_dominance():
+    data_dict = read_json_file(join(dataset_path, 'DREAMER_vad.json'))
+    return list(map(uint8, data_dict["valence"])), list(map(uint8, data_dict["arousal"])), list(map(uint8, data_dict["dominance"]))
 
 
 def read_raw(n_patient: int, type: str, n_movie: int, allow_maxshield: Any = False,
@@ -75,7 +100,7 @@ def read_raw(n_patient: int, type: str, n_movie: int, allow_maxshield: Any = Fal
                                verbose=verbose)
 
 
-def get_features(raw):
+def get_features(raw, n_patient: int = None, type: str = None, n_movie: int = None):
     """
     Extracts features from raw data as described in the paper:
     -Keep the last 60 seconds of data (for stimuli)
@@ -83,6 +108,9 @@ def get_features(raw):
     -Compute PSD for every 2 seconds (with 1-second overlapping window between each time frame, resulting in 59 frames)
 
     :param raw: Raw EEG data extracted from the DREAMER dataset (use read_dataset and get_raw).
+    :param n_patient: For file name after extraction
+    :param type: For file name after extraction
+    :param n_movie: For file name after extraction
     :return: PSD features for a stimuli.
     """
     last_index = raw.n_times - 1
@@ -100,6 +128,8 @@ def get_features(raw):
     theta = raw_cropped.copy().filter(4, 8, verbose=0).get_data()
     alpha = raw_cropped.copy().filter(8, 13, verbose=0).get_data()
     beta = raw_cropped.copy().filter(13, 20, verbose=0).get_data()
+
+    theta_values, alpha_values, beta_values = [], [], []
 
     for i in range(59):
         theta_cropped = theta[:, i * 128:(i + 2) * 128]
@@ -119,16 +149,41 @@ def get_features(raw):
         beta_frequencies, beta_psd = mne.time_frequency.psd_array_multitaper(raw_beta_cropped.get_data(), sfreq=128,
                                                                              fmin=13,
                                                                              fmax=20, verbose=0)
+        theta_values.append([[simps(lis, dx=0.5)] for lis in theta_frequencies])
+        alpha_values.append([[simps(lis, dx=0.5)] for lis in alpha_frequencies])
+        beta_values.append([[simps(lis, dx=0.5)] for lis in beta_frequencies])
 
-        #yield theta_psd, theta_frequencies, alpha_psd, alpha_frequencies, beta_psd, beta_frequencies
-        #yield [[array(lis).mean(0)] for lis in theta_frequencies], [[array(lis).mean(0)] for lis in alpha_frequencies], [[array(lis).mean(0)] for lis in beta_frequencies]
-        yield [[simps(lis,dx=0.5)] for lis in theta_frequencies], [[simps(lis,dx=0.5)] for lis in
-                                                                    alpha_frequencies], [[simps(lis,dx=0.5)] for lis in
-                                                                                         beta_frequencies]
+        data = {
+            "theta": theta_values,
+            "alpha": alpha_values,
+            "beta": beta_values
+        }
+        filename = join(dataset_path, 'DREAMER_features_p{}_{}_m{}.json'.format(n_patient, type, n_movie))
+        write_json_file(data, filename)
+        print(f"Data has been written to {filename}.")
+    """data = {
+        "theta": theta_values,
+        "alpha": alpha_values,
+        "beta": beta_values
+    }
+    filename = join(dataset_path, 'DREAMER_features_p{}_{}_m{}.json'.format(n_patient, type, n_movie))
+    write_json_file(data, filename)
+    print(f"Data has been written to {filename}.")"""
 
 
 if __name__ == '__main__':
     # read_dataset() # Only need to run once to save as `fif` files.
+    write_valence_arousal_dominance()
+
+    for patient in range(23):
+        for rec_type in ['stimuli']:  # No need 'baseline'
+            for movie in range(18):
+                raw = read_raw(patient, rec_type, movie, verbose=0)
+                get_features(raw, patient, rec_type, movie)
+
+    exit(0)
+
+    #  TODO: Update visualization
 
     t_channel_labels = ['AF3 (theta)', 'F7 (theta)', 'F3 (theta)', 'FC5 (theta)', 'T7 (theta)', 'P7 (theta)',
                         'O1 (theta)', 'O2 (theta)', 'P8 (theta)', 'T8 (theta)', 'FC6 (theta)', 'F4 (theta)', 'F8',
@@ -140,6 +195,7 @@ if __name__ == '__main__':
                         'O1 (beta)', 'O2 (beta)', 'P8 (beta)', 'T8 (beta)', 'FC6 (beta)', 'F4 (beta)', 'F8',
                         'AF4 (beta)']
     test_raw = read_raw(n_patient=1, type='stimuli', n_movie=10)
+
     for theta__psd, theta__frequencies, alpha__psd, alpha__frequencies, beta__psd, beta__frequencies in get_features(
             test_raw):
         plt.figure()
